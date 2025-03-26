@@ -17,8 +17,6 @@ class libPyConfiguration:
 	"""
 
 	es_host: list = field(default_factory = list)
-	es_port: int = 9200
-	use_ssl: bool = False
 	verificate_certificate_ssl: bool = False
 	certificate_file: str = None
 	use_authentication: bool = False
@@ -29,7 +27,7 @@ class libPyConfiguration:
 	api_key: tuple = None
 
 
-	def __init__(self, backtitle):
+	def __init__(self, backtitle: str = ""):
 		"""
 		Class constructor.
 		"""
@@ -43,25 +41,16 @@ class libPyConfiguration:
 		Method that defines the master nodes of the cluster.
 		"""
 		total_master_nodes = self.dialog.create_integer_inputbox("Enter the total number of master nodes:", 8, 50, "1")
-		tuple_to_form = self.utils.generate_tuple_to_form(int(total_master_nodes), "IP Address")
-		self.es_host = self.dialog.create_form("Enter IP address or domain:", tuple_to_form, 15, 50, "ElasticSearch Hosts", True, validation_type = 1)
+		tuple_to_form = self.utils.generate_tuple_to_form(int(total_master_nodes), "ES Host")
+		self.es_host = self.dialog.create_form("Enter ElasticSearch Hosts:", tuple_to_form, 15, 50, "ElasticSearch Hosts", True, validation_type = 2)
 
 
-	def define_es_port(self) -> None:
+	def define_verificate_certificate(self) -> None:
 		"""
-		Method that defines the communication port with ElasticSearch.
+		Method that defines whether the SSL certificate needs to be verified or not.
 		"""
-		self.es_port = int(self.dialog.create_port_inputbox("Enter the port to communicate with ElasticSearch:", 9, 50, "9200"))
-
-
-	def define_use_ssl(self) -> None:
-		"""
-		Method that defines whether the TLS/SSL protocol is used for communication or not.
-		"""
-		use_ssl_yn = self.dialog.create_yes_or_no("\nIs the use of the TLS/SSL protocol required for communication?", 8, 50, "TLS/SSL Connection")
-		if use_ssl_yn == "ok":
-			self.use_ssl = True
-			verificate_certificate_ssl_yn = self.dialog.create_yes_or_no("\nIs SSL certificate verification required?", 7, 50, "Certificate SSL Verification")
+		if self.utils.validate_https_or_http(self.es_host):
+			verificate_certificate_ssl_yn = self.dialog.create_yes_or_no("\nIs SSL certificate verification required?\n\n**Note: Available only when using HTTPS.", 9, 50, "Certificate SSL Verification")
 			if verificate_certificate_ssl_yn == "ok":
 				self.verificate_certificate_ssl = True
 				self.certificate_file = self.dialog.create_file("/etc", 8, 50, "Select the CA certificate:", [".pem"])
@@ -97,15 +86,12 @@ class libPyConfiguration:
 			configuration_data_json (dict): Dictionary with the object's data.
 		"""
 		configuration_data_json = {
-			"es_host": self.es_host,
-			"es_port": self.es_port,
-			"use_ssl": self.use_ssl
+			"es_host": self.es_host
 		}
 
-		if self.use_ssl:
-			configuration_data_json.update({"verificate_certificate_ssl" : self.verificate_certificate_ssl})
-			if self.verificate_certificate_ssl:
-				configuration_data_json.update({"certificate_file": self.certificate_file})
+		configuration_data_json.update({"verificate_certificate_ssl" : self.verificate_certificate_ssl})
+		if self.verificate_certificate_ssl:
+			configuration_data_json.update({"certificate_file": self.certificate_file})
 		configuration_data_json.update({"use_authentication" : self.use_authentication})
 		if self.use_authentication:
 			if self.authentication_method == "HTTP Authentication":
@@ -151,14 +137,11 @@ class libPyConfiguration:
 			configuration_data (dict): Dictionary to convert.
 		"""
 		self.es_host = configuration_data["es_host"]
-		self.es_port = configuration_data["es_port"]
-		self.use_ssl = configuration_data["use_ssl"]
-		
-		if configuration_data["use_ssl"]:
-			self.verificate_certificate_ssl = configuration_data["verificate_certificate_ssl"]
-			if configuration_data["verificate_certificate_ssl"]:
-				self.certificate_file = configuration_data["certificate_file"]
+		self.verificate_certificate_ssl = configuration_data["verificate_certificate_ssl"]
 		self.use_authentication = configuration_data["use_authentication"]
+
+		if configuration_data["verificate_certificate_ssl"]:
+			self.certificate_file = configuration_data["certificate_file"]
 		if configuration_data["use_authentication"]:
 			self.authentication_method = configuration_data["authentication_method"]
 			if configuration_data["authentication_method"] == "HTTP Authentication":
@@ -171,20 +154,26 @@ class libPyConfiguration:
 
 	def modify_configuration(self, configuration_file: str, key_file: str, log_file_name: str, user: str = None, group: str = None) -> None:
 		"""
+		Method that modifies the configuration.
+
+		Parameters:
+			configuration_file (str): Configuration file path.
+			key_file (str): Key file path.
+			log_file_name (str): Log file path.
+			user (str): Owner user.
+			group (str): Owner group.
 		"""
-		CONFIGURATION_FIELDS = [("Host", "ElasticSearch Host", 0), ("Port", "ElasticSearch Port", 0), ("SSL/TLS", "Enable or disable SSL/TLS connection", 0), ("Authentication", "Enable or disable authentication method", 0)]
+		CONFIGURATION_FIELDS = [("Host", "ElasticSearch Host", 0), ("Certificate SSL", "Enable or disable certificate verification", 0), ("Authentication", "Enable or disable authentication method", 0)]
 		
 		try:
-			options = self.dialog.create_checklist("Select one or more options:", 11, 65, CONFIGURATION_FIELDS, "Configuration Fields")
+			options = self.dialog.create_checklist("Select one or more options:", 10, 70, CONFIGURATION_FIELDS, "Configuration Fields")
 			configuration_data = self.utils.read_yaml_file(configuration_file)
 			self.convert_dict_to_object(configuration_data)
 			original_hash = self.utils.get_hash_from_file(configuration_file)
 			if "Host" in options:
 				self.modify_es_host()
-			if "Port" in options:
-				self.modify_es_port()
-			if "SSL/TLS" in options:
-				self.modify_use_ssl()
+			if "Certificate SSL" in options:
+				self.modify_verificate_certificate()
 			if "Authentication" in options:
 				self.modify_use_authentication(key_file)
 			configuration_data = self.convert_object_to_dict()
@@ -214,14 +203,14 @@ class libPyConfiguration:
 		match option:
 			case "1":		
 				total_master_nodes = self.dialog.create_integer_inputbox("Enter the total number of master nodes:", 8, 50, "1")
-				tuple_to_form = self.utils.generate_tuple_to_form(int(total_master_nodes), "IP Address")
-				es_host = self.dialog.create_form("Enter IP address or domain:", tuple_to_form, 15, 50, "Add ElasticSearch Hosts", True, validation_type = 1)
+				tuple_to_form = self.utils.generate_tuple_to_form(int(total_master_nodes), "ES Host")
+				es_host = self.dialog.create_form("Enter ElasticSearch Hosts:", tuple_to_form, 15, 50, "Add ElasticSearch Hosts", True, validation_type = 2)
 				self.es_host.extend(es_host)
 			case "2":
-				tuple_to_form = self.utils.convert_list_to_tuple(self.es_host, "IP Address")
-				self.es_host = self.dialog.create_form("Enter IP address or domain:", tuple_to_form, 15, 50, "Modify ElasticSearch Hosts", True, validation_type = 1)
+				tuple_to_form = self.utils.convert_list_to_tuple(self.es_host, "ES Host")
+				self.es_host = self.dialog.create_form("Enter ElasticSearch Hosts:", tuple_to_form, 15, 50, "Modify ElasticSearch Hosts", True, validation_type = 2)
 			case "3":
-				tuple_to_rc = self.utils.convert_list_to_tuple_rc(self.es_host, "IP Address")
+				tuple_to_rc = self.utils.convert_list_to_tuple_rc(self.es_host, "ES Host")
 				options = self.dialog.create_checklist("Select one or more options:", 15, 50, tuple_to_rc, "Remove ElasticSearch Hosts")
 				text = self.utils.get_str_from_list(options, "Selected ElasticSearch Hosts:")
 				self.dialog.create_scrollbox(text, 15, 60, "Remove ElasticSearch Hosts")
@@ -230,52 +219,26 @@ class libPyConfiguration:
 					[self.es_host.remove(option) for option in options]
 
 
-	def modify_es_port(self) -> None:
-		"""
-		Method that modifies the ElasticSearch connection port.
-		"""
-		self.es_port = int(self.dialog.create_port_inputbox("Enter the port to communicate with ElasticSearch:", 9, 50, str(self.es_port)))
-
-
-	def modify_use_ssl(self) -> None:
+	def modify_verificate_certificate(self) -> None:
 		"""
 		Method that updates or modifies the configuration related to the use of the TLS/SSL protocol.
 		"""
-		OPTIONS_SSL_TRUE = [("Disable", "Disable SSL/TLS communication", 0), ("Certificate Verification", "Modify certificate verification", 0)]
-
-		OPTIONS_SSL_FALSE = [("Enable", "Enable SSL/TLS communication", 0)]
-		
 		OPTIONS_VERIFICATE_CERTIFICATE_TRUE = [("Disable", "Disable certificate verification", 0), ("Certificate File", "Change certificate file", 0)]
 
 		OPTIONS_VERIFICATE_CERTIFICATE_FALSE = [("Enable", "Enable certificate verification", 0)]
 
-		if self.use_ssl:
-			option = self.dialog.create_radiolist("Select a option:", 9, 70, OPTIONS_SSL_TRUE, "TLS/SSL Connection")
+		if self.verificate_certificate_ssl:
+			option = self.dialog.create_radiolist("Select a option:", 9, 65, OPTIONS_VERIFICATE_CERTIFICATE_TRUE, "Certificate Verification")
 			if option == "Disable":
-				self.use_ssl = False
 				self.verificate_certificate_ssl = False
 				self.certificate_file = None
-			elif option == "Certificate Verification":
-				if self.verificate_certificate_ssl:
-					option = self.dialog.create_radiolist("Select a option:", 9, 65, OPTIONS_VERIFICATE_CERTIFICATE_TRUE, "Certificate Verification")
-					if option == "Disable":
-						self.verificate_certificate_ssl = False
-						self.certificate_file = None
-					elif option == "Certificate File":
-						self.certificate_file = self.dialog.create_file(self.certificate_file, 8, 50, "Select the CA certificate:", [".pem"])
-				else:
-					option = self.dialog.create_radiolist("Select a option:", 8, 70, OPTIONS_VERIFICATE_CERTIFICATE_FALSE, "Certificate Verification")
-					if option == "Enable":
-						self.verificate_certificate_ssl = True
-						self.certificate_file = self.dialog.create_file("/etc", 8, 50, "Select the CA certificate:", [".pem"])
+			elif option == "Certificate File":
+				self.certificate_file = self.dialog.create_file(self.certificate_file, 8, 50, "Select the CA certificate:", [".pem"])
 		else:
-			option = self.dialog.create_radiolist("Select a option:", 8, 65, OPTIONS_SSL_FALSE, "TLS/SSL Connection")
+			option = self.dialog.create_radiolist("Select a option:", 8, 70, OPTIONS_VERIFICATE_CERTIFICATE_FALSE, "Certificate Verification")
 			if option == "Enable":
-				self.use_ssl = True
-				verificate_certificate_ssl_yn = self.dialog.create_yes_or_no("\nIs SSL certificate verification required?", 7, 50, "Certificate SSL Verification")
-				if verificate_certificate_ssl_yn == "ok":
-					self.verificate_certificate_ssl = True
-					self.certificate_file = self.dialog.create_file("/etc", 8, 50, "Select the CA certificate:", [".pem"])
+				self.verificate_certificate_ssl = True
+				self.certificate_file = self.dialog.create_file("/etc", 8, 50, "Select the CA certificate:", [".pem"])
 
 
 	def modify_use_authentication(self, key_file: str) -> None:
