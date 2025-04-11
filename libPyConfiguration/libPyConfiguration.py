@@ -2,7 +2,7 @@
 Author: Erick Roberto Rodriguez Rodriguez
 Email: erodriguez@tekium.mx, erickrr.tbd93@gmail.com
 GitHub: https://github.com/erickrr-bd/libPyConfiguration
-libPyConfiguration v1.0 - March 2025
+libPyConfiguration v1.0 - April 2025
 """
 from os import path
 from libPyLog import libPyLog
@@ -21,15 +21,18 @@ class libPyConfiguration:
 	certificate_file: str = None
 	use_authentication: bool = False
 	authentication_method: str = None
-	http_authentication_user: tuple = None
-	http_authentication_password: tuple = None
-	api_key_id: tuple = None
-	api_key: tuple = None
+	http_authentication_user: tuple = field(default_factory = tuple)
+	http_authentication_password: tuple = field(default_factory = tuple)
+	api_key_id: tuple = field(default_factory = tuple)
+	api_key: tuple = field(default_factory = tuple)
 
 
 	def __init__(self, backtitle: str = ""):
 		"""
 		Class constructor.
+
+		Parameters:
+			backtitle (str): Text displayed in the background.
 		"""
 		self.logger = libPyLog()
 		self.utils = libPyUtils()
@@ -171,11 +174,11 @@ class libPyConfiguration:
 			self.convert_dict_to_object(configuration_data)
 			original_hash = self.utils.get_hash_from_file(configuration_file)
 			if "Host" in options:
-				self.modify_es_host()
+				self.modify_es_host(log_file_name, user, group)
 			if "Certificate SSL" in options:
-				self.modify_verificate_certificate()
+				self.modify_verificate_certificate(log_file_name, user, group)
 			if "Authentication" in options:
-				self.modify_use_authentication(key_file)
+				self.modify_use_authentication(key_file, log_file_name, user, group)
 			configuration_data = self.convert_object_to_dict()
 			self.utils.create_yaml_file(configuration_data, configuration_file)
 			new_hash = self.utils.get_hash_from_file(configuration_file)
@@ -183,7 +186,6 @@ class libPyConfiguration:
 				self.dialog.create_message("\nConfiguration not modified.", 7, 50, "Notification Message")
 			else:
 				self.dialog.create_message("\nConfiguration modified.", 7, 50, "Notification Message")
-				self.logger.create_log("Configuration modified.", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group )
 		except Exception as exception:
 			self.dialog.create_message("\nError modifying configuration. For more information, see the logs.", 8, 50, "Error Message")
 			self.logger.create_log(exception, 4, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
@@ -193,9 +195,14 @@ class libPyConfiguration:
 			raise KeyboardInterrupt("Exit")
 
 
-	def modify_es_host(self) -> None:
+	def modify_es_host(self, log_file_name: str, user: str = None, group: str = None) -> None:
 		"""
 		Method that modifies ElasticSearch master nodes.
+
+		Parameters:
+			log_file_name (str): Log file path.
+			user (str): Owner user.
+			group (str): Owner group.
 		"""
 		ES_HOST_OPTIONS = [("1", "Add New Hosts"), ("2", "Modify Hosts"), ("3", "Remove Hosts")]
 
@@ -206,9 +213,11 @@ class libPyConfiguration:
 				tuple_to_form = self.utils.generate_tuple_to_form(int(total_master_nodes), "ES Host")
 				es_host = self.dialog.create_form("Enter ElasticSearch Hosts:", tuple_to_form, 15, 50, "Add ElasticSearch Hosts", True, validation_type = 2)
 				self.es_host.extend(es_host)
+				self.logger.create_log(f"Added ElasticSearch Hosts: {','.join(es_host)}", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 			case "2":
 				tuple_to_form = self.utils.convert_list_to_tuple(self.es_host, "ES Host")
 				self.es_host = self.dialog.create_form("Enter ElasticSearch Hosts:", tuple_to_form, 15, 50, "Modify ElasticSearch Hosts", True, validation_type = 2)
+				self.logger.create_log(f"Modified ElasticSearch Hosts: {','.join(self.es_host)}", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 			case "3":
 				tuple_to_rc = self.utils.convert_list_to_tuple_rc(self.es_host, "ES Host")
 				options = self.dialog.create_checklist("Select one or more options:", 15, 50, tuple_to_rc, "Remove ElasticSearch Hosts")
@@ -217,11 +226,17 @@ class libPyConfiguration:
 				es_host_yn = self.dialog.create_yes_or_no("\nAre you sure to remove the selected ElasticSearch Hosts?\n\n** This action cannot be undone.", 10, 50, "Remove ElasticSearch Hosts")
 				if es_host_yn == "ok":
 					[self.es_host.remove(option) for option in options]
+				self.logger.create_log(f"Removed ElasticSearch Hosts: {','.join(options)}", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 
 
-	def modify_verificate_certificate(self) -> None:
+	def modify_verificate_certificate(self, log_file_name: str, user: str = None, group: str = None) -> None:
 		"""
 		Method that updates or modifies the configuration related to the use of the TLS/SSL protocol.
+
+		Parameters:
+			log_file_name (str): Log file path.
+			user (str): Owner user.
+			group (str): Owner group.
 		"""
 		OPTIONS_VERIFICATE_CERTIFICATE_TRUE = [("Disable", "Disable certificate verification", 0), ("Certificate File", "Change certificate file", 0)]
 
@@ -232,21 +247,27 @@ class libPyConfiguration:
 			if option == "Disable":
 				self.verificate_certificate_ssl = False
 				self.certificate_file = None
+				self.logger.create_log("SSL certificate verification has been disabled", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 			elif option == "Certificate File":
 				self.certificate_file = self.dialog.create_file(self.certificate_file, 8, 50, "Select the CA certificate:", [".pem"])
+				self.logger.create_log(f"SSL certificate changed: {self.certificate_file}", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 		else:
 			option = self.dialog.create_radiolist("Select a option:", 8, 70, OPTIONS_VERIFICATE_CERTIFICATE_FALSE, "Certificate Verification")
 			if option == "Enable":
 				self.verificate_certificate_ssl = True
 				self.certificate_file = self.dialog.create_file("/etc", 8, 50, "Select the CA certificate:", [".pem"])
+				self.logger.create_log("SSL certificate verification has been enabled", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 
 
-	def modify_use_authentication(self, key_file: str) -> None:
+	def modify_use_authentication(self, key_file: str, log_file_name: str, user: str = None, group: str = None) -> None:
 		"""
 		Method that updates or modifies the configuration related to the use of an authentication method.
 
 		Parameters:
 			key_file (str): Key file path.
+			log_file_name (str): Log file path.
+			user (str): Owner user.
+			group (str): Owner group.
 		"""
 		OPTIONS_AUTHENTICATION_TRUE = [("Disable", "Disable authentication method", 0), ("Method", "Modify authentication method", 0)]
 
@@ -271,6 +292,7 @@ class libPyConfiguration:
 					self.api_key_id = None
 					self.api_key = None
 				self.authentication_method = None
+				self.logger.create_log("Authentication method usage has been disabled", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 			elif option == "Method":
 				passphrase = self.utils.get_passphrase(key_file)
 				if self.authentication_method == "HTTP Authentication":
@@ -281,12 +303,15 @@ class libPyConfiguration:
 						self.authentication_method = "API Key"
 						self.api_key_id = self.utils.encrypt_data(self.dialog.create_inputbox("Enter the API Key ID:", 8, 50, "VuaCfGcBCdbkQm-e5aOx"), passphrase)
 						self.api_key = self.utils.encrypt_data(self.dialog.create_inputbox("Enter the API Key:", 8, 50, "ui2lp2axTNmsyakw9tvNnw"), passphrase)
+						self.logger.create_log("HTTP Authentication disabled. API Key authentication enabled.", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 					elif option == "Data":
 						options = self.dialog.create_checklist("Select one or more options:", 9, 55, OPTIONS_HTTP_AUTHENTICATION, "HTTP Authentication")
 						if "Username" in options:
 							self.http_authentication_user = self.utils.encrypt_data(self.dialog.create_inputbox("Enter username:", 8, 50, "http_user"), passphrase)
+							self.logger.create_log("Username changed", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 						if "Password" in options:
 							self.http_authentication_password = self.utils.encrypt_data(self.dialog.create_passwordbox("Enter the password:", 8, 50, "password", True), passphrase)
+							self.logger.create_log("Password changed", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 				elif self.authentication_method == "API Key":
 					option = self.dialog.create_radiolist("Select a option:", 9, 55, OPTIONS_AUTHENTICATION_MODIFY, "API Key")
 					if option == "Disable":
@@ -295,12 +320,15 @@ class libPyConfiguration:
 						self.authentication_method = "HTTP Authentication"
 						self.http_authentication_user = self.utils.encrypt_data(self.dialog.create_inputbox("Enter username:", 8, 50, "http_user"), passphrase)
 						self.http_authentication_password = self.utils.encrypt_data(self.dialog.create_passwordbox("Enter the password:", 8, 50, "password", True), passphrase)
+						self.logger.create_log("API Key authentication disabled. HTTP Authentication enabled.", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 					elif option == "Data":
 						options = self.dialog.create_checklist("Select one or more options:", 9, 55, OPTIONS_API_KEY, "API Key")
 						if "ID" in options:
 							self.api_key_id = self.utils.encrypt_data(self.dialog.create_inputbox("Enter the API Key ID:", 8, 50, "VuaCfGcBCdbkQm-e5aOx"), passphrase)
+							self.logger.create_log("API Key ID changed", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 						if "API Key" in options:
 							self.api_key = self.utils.encrypt_data(self.dialog.create_inputbox("Enter the API Key:", 8, 50, "ui2lp2axTNmsyakw9tvNnw"), passphrase)
+							self.logger.create_log("API Key changed", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 		else:
 			option = self.dialog.create_radiolist("Select a option:", 8, 55, OPTIONS_AUTHENTICATION_FALSE, "Authentication Method")
 			if option == "Enable":
@@ -313,6 +341,8 @@ class libPyConfiguration:
 				elif self.authentication_method == "API Key":
 					self.api_key_id = self.utils.encrypt_data(self.dialog.create_inputbox("Enter the API Key ID:", 8, 50, "VuaCfGcBCdbkQm-e5aOx"), passphrase)
 					self.api_key = self.utils.encrypt_data(self.dialog.create_inputbox("Enter the API Key:", 8, 50, "ui2lp2axTNmsyakw9tvNnw"), passphrase)
+				self.logger.create_log("Authentication method usage has been enabled", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
+				self.logger.create_log(f"Authentication method: {self.authentication_method}", 3, "_modifyConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
 
 
 	def display_configuration(self, configuration_file: str, log_file_name: str, user: str = None, group: str = None) -> None:
