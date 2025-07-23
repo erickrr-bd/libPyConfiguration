@@ -2,7 +2,7 @@
 Author: Erick Roberto Rodriguez Rodriguez
 Email: erodriguez@tekium.mx, erickrr.tbd93@gmail.com
 GitHub: https://github.com/erickrr-bd/libPyConfiguration
-libPyConfiguration v1.0 - April 2025
+libPyConfiguration v1.0 - July 2025
 """
 from os import path
 from libPyLog import libPyLog
@@ -27,7 +27,7 @@ class libPyConfiguration:
 	api_key: tuple = field(default_factory = tuple)
 
 
-	def __init__(self, backtitle: str = ""):
+	def __init__(self, backtitle: str = "") -> None:
 		"""
 		Class constructor.
 
@@ -117,9 +117,9 @@ class libPyConfiguration:
 		"""
 		try:
 			self.utils.create_yaml_file(configuration_data, configuration_file)
-			self.utils.change_owner(configuration_file, user, group, "644")
+			self.utils.change_owner(configuration_file, user, group, "640")
 			if configuration_data["verificate_certificate_ssl"]:
-				self.utils.change_owner(configuration_data["certificate_file"], user, group, "644")
+				self.utils.change_owner(configuration_data["certificate_file"], user, group, "640")
 			if path.exists(configuration_file):
 				self.dialog.create_message("\nConfiguration created.", 7, 50, "Notification Message")
 				self.logger.create_log("Configuration created", 2, "__createConfiguration", use_file_handler = True, file_name = log_file_name, user = user, group = group)
