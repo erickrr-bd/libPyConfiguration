@@ -31,6 +31,21 @@ Standard configuration modules often store backend credentials in text profiles 
 
 ---
 
+## ⚙️ Requirements
+
+To run this library and its integration modules, the following system and Python specifications are required:
+
+### 1. System & Runtime Environment
+* **Python 3.10+**: Crucial for native pattern matching syntax (`match-case`) used across the routing and logging engines.
+* **Linux OS**: Required for managing native file ownership (`chown`), system groups, and execution permissions (`chmod`).
+
+### 2. Python Dependencies
+* **libPyUtils**
+* **libPyLog**
+* **libPyDialog**
+    
+---
+
 ## 📋 API Usage Reference
 
 ### Main Architecture Routines
