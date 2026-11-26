@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 HERE = Path(__file__).parent
 
-VERSION = '1.2'
+VERSION = '1.3.0'
 PACKAGE_NAME = 'libPyConfiguration' 
 AUTHOR = 'Erick Roberto Rodríguez Rodriguez'
 AUTHOR_EMAIL = 'erickrr.tbd93@gmail.com, erodriguez@tekium.mx' 
